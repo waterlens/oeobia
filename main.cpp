@@ -2,6 +2,8 @@
 #include <type_traits>
 
 using namespace std;
+
+namespace oeobia {
 // aux
 struct U {};
 struct V {};
@@ -14,9 +16,37 @@ struct Z {};
 struct O {};
 template <typename N> struct S {};
 
+using Zero = O;
+using One = S<O>;
+using Two = S<S<O>>;
+using Three = S<S<S<O>>>;
+
 // prev
 template <typename N> struct prev {};
 template <typename N> struct prev<S<N>> { using result = N; };
+
+// plus
+template <typename N1, typename N2> struct plus {};
+template <typename N> struct plus<O, N> { using result = N; };
+template <typename N1, typename N2> struct plus<S<N1>, N2> {
+  using result = S<typename plus<N1, N2>::result>;
+};
+
+// minus
+template <typename N1, typename N2> struct minus {};
+template <typename N> struct minus<O, N> { using result = O; };
+template <typename N> struct minus<N, O> { using result = N; };
+template <typename N1, typename N2> struct minus<S<N1>, S<N2>> {
+  using result = typename minus<N1, N2>::result;
+};
+
+// mult
+template <typename N1, typename N2> struct mult {};
+template <typename N> struct mult<O, N> { using result = O; };
+template <typename N> struct mult<N, O> { using result = O; };
+template <typename N1, typename N2> struct mult<S<N1>, N2> {
+  using result = typename plus<typename mult<N1, N2>::result, N2>::result;
+};
 
 // bool
 struct True {};
@@ -31,14 +61,14 @@ template <> struct ind_nat_to_lit<O> {
   enum { value = 0 };
 };
 
-// eqn
-template <typename N1, typename N2> struct eqn {
-  using result = typename eqn<typename prev<N1>::result,
-                              typename prev<N2>::result>::result;
+// eq_nat
+template <typename N1, typename N2> struct eq_nat {};
+template <> struct eq_nat<O, O> { using result = True; };
+template <typename N> struct eq_nat<O, S<N>> { using result = False; };
+template <typename N> struct eq_nat<S<N>, O> { using result = False; };
+template <typename N1, typename N2> struct eq_nat<S<N1>, S<N2>> {
+  using result = typename eq_nat<N1, N2>::result;
 };
-template <> struct eqn<O, O> { using result = True; };
-template <typename N> struct eqn<O, S<N>> { using result = False; };
-template <typename N> struct eqn<S<N>, O> { using result = False; };
 
 // list
 struct nil {};
@@ -82,28 +112,32 @@ struct find<K1, record<K2, V, M>> {
   using result = typename find<K1, M>::result;
 };
 
-int main() {
-  static_assert(ind_nat_to_lit<S<S<O>>>::value == 2, "");
-  static_assert(is_same_v<eqn<S<S<S<O>>>, S<O>>::result, False>, "");
-  static_assert(is_same_v<eqn<S<S<S<O>>>, S<S<S<O>>>>::result, True>, "");
-  static_assert(
-      ind_nat_to_lit<length<cons<U, cons<U, nil>>>::result>::value == 2, "");
-  static_assert(is_same_v<app<cons<U, cons<U, nil>>, cons<U, nil>>::result,
-                          cons<U, cons<U, cons<U, nil>>>>,
+void test() {
+  using test_map = record<X, Y, record<W, Z, record<V, nil, empty>>>;
+  using test_list1 = cons<U, cons<U, nil>>;
+  using test_list2 = cons<U, nil>;
+  using test_list3 = cons<U, cons<U, cons<U, nil>>>;
+
+  static_assert(ind_nat_to_lit<Two>::value == 2, "");
+  static_assert(is_same_v<eq_nat<Three, One>::result, False>, "");
+  static_assert(is_same_v<eq_nat<Three, Three>::result, True>, "");
+  static_assert(is_same_v<eq_nat<plus<One, Two>::result, Three>::result, True>,
+                "");
+  static_assert(is_same_v<eq_nat<minus<Three, One>::result, Two>::result, True>,
                 "");
   static_assert(
-      is_same_v<
-          find<W, record<X, Y, record<W, Z, record<V, nil, empty>>>>::result,
-          Some<Z>>,
-      "");
+      is_same_v<eq_nat<mult<Three, One>::result, Three>::result, True>, "");
   static_assert(
       is_same_v<
-          find<U, record<X, Y, record<W, Z, record<V, nil, empty>>>>::result,
-          None>,
+          eq_nat<mult<Two, Three>::result, plus<Three, Three>::result>::result,
+          True>,
       "");
-  static_assert(
-      is_same_v<
-          find<V, record<X, Y, record<W, Z, record<V, nil, empty>>>>::result,
-          Some<nil>>,
-      "");
+  static_assert(ind_nat_to_lit<length<test_list1>::result>::value == 2, "");
+  static_assert(is_same_v<app<test_list1, test_list2>::result, test_list3>, "");
+  static_assert(is_same_v<find<W, test_map>::result, Some<Z>>, "");
+  static_assert(is_same_v<find<U, test_map>::result, None>, "");
+  static_assert(is_same_v<find<V, test_map>::result, Some<nil>>, "");
 }
+} // namespace oeobia
+
+int main() { oeobia::test(); }
