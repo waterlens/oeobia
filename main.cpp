@@ -52,6 +52,37 @@ template <typename N1, typename N2> struct mult<S<N1>, N2> {
 struct True {};
 struct False {};
 
+// and_bool
+template <typename B1, typename B2> struct andb {};
+template <typename B>
+requires same_as<B, True> || same_as<B, False>
+struct andb<True, B> {
+  using result = B;
+};
+template <typename B>
+requires same_as<B, True> || same_as<B, False>
+struct andb<False, B> {
+  using result = False;
+};
+
+// or_bool
+template <typename B1, typename B2> struct orb {};
+template <typename B>
+requires same_as<B, True> || same_as<B, False>
+struct orb<True, B> {
+  using result = True;
+};
+template <typename B>
+requires same_as<B, True> || same_as<B, False>
+struct orb<False, B> {
+  using result = B;
+};
+
+// neg_bool
+template <typename B> struct negb {};
+template <> struct negb<True> { using result = False; };
+template <> struct negb<False> { using result = True; };
+
 // ind_nat_to_lit
 template <typename N> struct ind_nat_to_lit {
   enum { value = 1 + ind_nat_to_lit<typename prev<N>::result>::value };
@@ -62,12 +93,21 @@ template <> struct ind_nat_to_lit<O> {
 };
 
 // eq_nat
-template <typename N1, typename N2> struct eq_nat {};
-template <> struct eq_nat<O, O> { using result = True; };
-template <typename N> struct eq_nat<O, S<N>> { using result = False; };
-template <typename N> struct eq_nat<S<N>, O> { using result = False; };
-template <typename N1, typename N2> struct eq_nat<S<N1>, S<N2>> {
-  using result = typename eq_nat<N1, N2>::result;
+template <typename N1, typename N2> struct eqn {};
+template <> struct eqn<O, O> { using result = True; };
+template <typename N> struct eqn<O, S<N>> { using result = False; };
+template <typename N> struct eqn<S<N>, O> { using result = False; };
+template <typename N1, typename N2> struct eqn<S<N1>, S<N2>> {
+  using result = typename eqn<N1, N2>::result;
+};
+
+// le_nat
+template <typename N1, typename N2> struct len {};
+template <> struct len<O, O> { using result = True; };
+template <typename N> struct len<O, S<N>> { using result = True; };
+template <typename N> struct len<S<N>, O> { using result = False; };
+template <typename N1, typename N2> struct len<S<N1>, S<N2>> {
+  using result = typename len<N1, N2>::result;
 };
 
 // list
@@ -119,17 +159,18 @@ void test() {
   using test_list3 = cons<U, cons<U, cons<U, nil>>>;
 
   static_assert(ind_nat_to_lit<Two>::value == 2, "");
-  static_assert(is_same_v<eq_nat<Three, One>::result, False>, "");
-  static_assert(is_same_v<eq_nat<Three, Three>::result, True>, "");
-  static_assert(is_same_v<eq_nat<plus<One, Two>::result, Three>::result, True>,
+  static_assert(is_same_v<eqn<Three, One>::result, False>, "");
+  static_assert(is_same_v<eqn<Three, Three>::result, True>, "");
+  static_assert(is_same_v<eqn<plus<One, Two>::result, Three>::result, True>,
                 "");
-  static_assert(is_same_v<eq_nat<minus<Three, One>::result, Two>::result, True>,
+  static_assert(is_same_v<eqn<minus<Three, One>::result, Two>::result, True>,
                 "");
+  static_assert(is_same_v<len<Two, Three>::result, True>, "");
   static_assert(
-      is_same_v<eq_nat<mult<Three, One>::result, Three>::result, True>, "");
+      is_same_v<eqn<mult<Three, One>::result, Three>::result, True>, "");
   static_assert(
       is_same_v<
-          eq_nat<mult<Two, Three>::result, plus<Three, Three>::result>::result,
+          eqn<mult<Two, Three>::result, plus<Three, Three>::result>::result,
           True>,
       "");
   static_assert(ind_nat_to_lit<length<test_list1>::result>::value == 2, "");
