@@ -223,6 +223,41 @@ struct beval<ST, BAnd<B1, B2>> {
                                typename beval<ST, B2>::result>::result;
 };
 
+// cexp
+struct CSkip {};
+template <typename ID, typename A> struct CAss {};
+template <typename C1, typename C2> struct CSeq {};
+template <typename B, typename C1, typename C2> struct CIf {};
+template <typename B, typename C> struct CWhile {};
+
+// ceval
+template <typename ST, typename C> struct ceval {};
+template <typename ST> struct ceval<ST, CSkip> { using result = ST; };
+template <typename ST, typename C1, typename C2>
+struct ceval<ST, CAss<C1, C2>> {
+  using result = typename ceval<typename ceval<ST, C1>::result, C2>::result;
+};
+template <typename ST, typename COND, typename C1, typename C2>
+struct cond_eval {};
+template <typename ST, typename C1, typename C2>
+struct cond_eval<ST, True, C1, C2> {
+  using result = typename ceval<ST, C1>::result;
+};
+template <typename ST, typename C1, typename C2>
+struct cond_eval<ST, False, C1, C2> {
+  using result = typename ceval<ST, C2>::result;
+};
+template <typename ST, typename B, typename C1, typename C2>
+struct ceval<ST, CIf<B, C1, C2>> {
+  using result =
+      typename cond_eval<ST, typename beval<ST, B>::result, C1, C2>::result;
+};
+template <typename ST, typename B, typename C> struct ceval<ST, CWhile<B, C>> {
+  using result =
+      typename cond_eval<ST, typename beval<ST, B>::result,
+                         CAss<C, ceval<ST, CWhile<B, C>>>, CSkip>::result;
+};
+
 void test() {
   using test_map = record<X, Y, record<W, Z, record<V, nil, empty>>>;
   using test_list1 = cons<U, cons<U, nil>>;
