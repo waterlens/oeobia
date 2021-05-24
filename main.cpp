@@ -65,6 +65,11 @@ struct andb<False, B> {
   using result = False;
 };
 
+// eq_bool
+template <typename B1, typename B2> struct eqb { using result = True; };
+template <> struct eqb<True, False> { using result = False; };
+template <> struct eqb<False, True> { using result = False; };
+
 // or_bool
 template <typename B1, typename B2> struct orb {};
 template <typename B>
@@ -152,6 +157,56 @@ struct find<K1, record<K2, V, M>> {
   using result = typename find<K1, M>::result;
 };
 
+// aexp
+template <typename N> struct ANum {};
+template <typename A1, typename A2> struct APlus {};
+template <typename A1, typename A2> struct AMinus {};
+template <typename A1, typename A2> struct AMult {};
+
+// aeval
+template <typename A> struct aeval {};
+template <typename N> struct aeval<ANum<N>> { using result = N; };
+template <typename A1, typename A2> struct aeval<APlus<A1, A2>> {
+  using result = typename plus<typename aeval<A1>::result,
+                               typename aeval<A2>::result>::result;
+};
+template <typename A1, typename A2> struct aeval<AMinus<A1, A2>> {
+  using result = typename minus<typename aeval<A1>::result,
+                                typename aeval<A2>::result>::result;
+};
+template <typename A1, typename A2> struct aeval<AMult<A1, A2>> {
+  using result = typename mult<typename aeval<A1>::result,
+                               typename aeval<A2>::result>::result;
+};
+
+// bexp
+struct BTrue {};
+struct BFalse {};
+template <typename B1, typename B2> struct BEq {};
+template <typename B1, typename B2> struct BLe {};
+template <typename B> struct BNot {};
+template <typename B1, typename B2> struct BAnd {};
+
+// beval
+template <typename B> struct beval {};
+template <> struct beval<BTrue> { using result = True; };
+template <> struct beval<BFalse> { using result = False; };
+template <typename A1, typename A2> struct beval<BEq<A1, A2>> {
+  using result = typename eqn<typename aeval<A1>::result,
+                              typename aeval<A1>::result>::result;
+};
+template <typename A1, typename A2> struct beval<BLe<A1, A2>> {
+  using result = typename len<typename aeval<A1>::result,
+                              typename aeval<A1>::result>::result;
+};
+template <typename B> struct beval<BNot<B>> {
+  using result = typename negb<B>::result;
+};
+template <typename B1, typename B2> struct beval<BAnd<B1, B2>> {
+  using result = typename andb<typename beval<B1>::result,
+                               typename beval<B2>::result>::result;
+};
+
 void test() {
   using test_map = record<X, Y, record<W, Z, record<V, nil, empty>>>;
   using test_list1 = cons<U, cons<U, nil>>;
@@ -166,8 +221,8 @@ void test() {
   static_assert(is_same_v<eqn<minus<Three, One>::result, Two>::result, True>,
                 "");
   static_assert(is_same_v<len<Two, Three>::result, True>, "");
-  static_assert(
-      is_same_v<eqn<mult<Three, One>::result, Three>::result, True>, "");
+  static_assert(is_same_v<eqn<mult<Three, One>::result, Three>::result, True>,
+                "");
   static_assert(
       is_same_v<
           eqn<mult<Two, Three>::result, plus<Three, Three>::result>::result,
