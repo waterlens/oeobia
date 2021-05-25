@@ -293,7 +293,7 @@ void test() {
                 True>,
       "");
   // test a imperative program
-  using init = CSeq<CAss<X, ANum<Two>>, CAss<Y, ANum<Zero>>>;
+  using init = CSeq<CAss<X, ANum<S<Three>>>, CAss<Y, ANum<Zero>>>;
   using body =
       CSeq<CAss<X, AMinus<AId<X>, ANum<One>>>, CAss<Y, APlus<AId<X>, AId<Y>>>>;
   using cond = BNot<BEq<AId<X>, ANum<Zero>>>;
@@ -301,19 +301,7 @@ void test() {
   using result = ceval<update<X, Zero, update<Y, Zero, empty>::result>::result,
                        prog>::result;
   static_assert(
-      is_same_v<
-          result,
-          record<
-              Y, One,
-              record<X, Zero,
-                     record<Y, One,
-                            record<X, One,
-                                   record<Y, Zero,
-                                          record<X, Two,
-                                                 record<X, Zero,
-                                                        record<Y, Zero,
-                                                               empty>>>>>>>>>,
-      "");
+      ind_nat_to_lit<unwrap<find<Y, result>::result>::result>::value == 6, "");
 }
 } // namespace oeobia
 
