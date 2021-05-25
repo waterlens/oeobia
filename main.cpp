@@ -35,6 +35,7 @@ template <typename N1, typename N2> struct plus<S<N1>, N2> {
 // minus
 template <typename N1, typename N2> struct minus {};
 template <typename N> struct minus<O, N> { using result = O; };
+template <> struct minus<O, O> { using result = O; };
 template <typename N> struct minus<N, O> { using result = N; };
 template <typename N1, typename N2> struct minus<S<N1>, S<N2>> {
   using result = typename minus<N1, N2>::result;
@@ -197,8 +198,8 @@ struct aeval<ST, AMult<A1, A2>> {
 // bexp
 struct BTrue {};
 struct BFalse {};
-template <typename B1, typename B2> struct BEq {};
-template <typename B1, typename B2> struct BLe {};
+template <typename A1, typename A2> struct BEq {};
+template <typename A1, typename A2> struct BLe {};
 template <typename B> struct BNot {};
 template <typename B1, typename B2> struct BAnd {};
 
@@ -233,8 +234,11 @@ template <typename B, typename C> struct CWhile {};
 // ceval
 template <typename ST, typename C> struct ceval {};
 template <typename ST> struct ceval<ST, CSkip> { using result = ST; };
+template <typename ST, typename ID, typename A> struct ceval<ST, CAss<ID, A>> {
+  using result = typename update<ID, typename aeval<ST, A>::result, ST>::result;
+};
 template <typename ST, typename C1, typename C2>
-struct ceval<ST, CAss<C1, C2>> {
+struct ceval<ST, CSeq<C1, C2>> {
   using result = typename ceval<typename ceval<ST, C1>::result, C2>::result;
 };
 template <typename ST, typename COND, typename C1, typename C2>
@@ -253,9 +257,8 @@ struct ceval<ST, CIf<B, C1, C2>> {
       typename cond_eval<ST, typename beval<ST, B>::result, C1, C2>::result;
 };
 template <typename ST, typename B, typename C> struct ceval<ST, CWhile<B, C>> {
-  using result =
-      typename cond_eval<ST, typename beval<ST, B>::result,
-                         CAss<C, ceval<ST, CWhile<B, C>>>, CSkip>::result;
+  using result = typename cond_eval<ST, typename beval<ST, B>::result,
+                                    CSeq<C, CWhile<B, C>>, CSkip>::result;
 };
 
 void test() {
@@ -288,6 +291,28 @@ void test() {
       is_same_v<beval<update<X, Three, empty>::result,
                       BAnd<BTrue, BNot<BLe<AId<X>, ANum<Two>>>>>::result,
                 True>,
+      "");
+  // test a imperative program
+  using init = CSeq<CAss<X, ANum<Two>>, CAss<Y, ANum<Zero>>>;
+  using body =
+      CSeq<CAss<X, AMinus<AId<X>, ANum<One>>>, CAss<Y, APlus<AId<X>, AId<Y>>>>;
+  using cond = BNot<BEq<AId<X>, ANum<Zero>>>;
+  using prog = CSeq<init, CWhile<cond, body>>;
+  using result = ceval<update<X, Zero, update<Y, Zero, empty>::result>::result,
+                       prog>::result;
+  static_assert(
+      is_same_v<
+          result,
+          record<
+              Y, One,
+              record<X, Zero,
+                     record<Y, One,
+                            record<X, One,
+                                   record<Y, Zero,
+                                          record<X, Two,
+                                                 record<X, Zero,
+                                                        record<Y, Zero,
+                                                               empty>>>>>>>>>,
       "");
 }
 } // namespace oeobia
