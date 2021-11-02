@@ -27,8 +27,8 @@ template <typename N> struct prev<S<N>> { using result = N; };
 
 // plus
 template <typename N1, typename N2> struct plus {};
-template <typename N> struct plus<O, N> { using result = N; };
-template <typename N1, typename N2> struct plus<S<N1>, N2> {
+template <typename N> struct plus<N, O> { using result = N; };
+template <typename N1, typename N2> struct plus<N1, S<N2>> {
   using result = S<typename plus<N1, N2>::result>;
 };
 
@@ -43,10 +43,9 @@ template <typename N1, typename N2> struct minus<S<N1>, S<N2>> {
 
 // mult
 template <typename N1, typename N2> struct mult {};
-template <typename N> struct mult<O, N> { using result = O; };
 template <typename N> struct mult<N, O> { using result = O; };
-template <typename N1, typename N2> struct mult<S<N1>, N2> {
-  using result = typename plus<typename mult<N1, N2>::result, N2>::result;
+template <typename N1, typename N2> struct mult<N1, S<N2>> {
+  using result = typename plus<N1, typename mult<N1, N2>::result>::result;
 };
 
 // bool
@@ -226,7 +225,7 @@ struct beval<ST, BAnd<B1, B2>> {
 
 // cexp
 struct CSkip {};
-template <typename ID, typename A> struct CAss {};
+template <typename ID, typename A> struct CAsgn {};
 template <typename C1, typename C2> struct CSeq {};
 template <typename B, typename C1, typename C2> struct CIf {};
 template <typename B, typename C> struct CWhile {};
@@ -234,7 +233,7 @@ template <typename B, typename C> struct CWhile {};
 // ceval
 template <typename ST, typename C> struct ceval {};
 template <typename ST> struct ceval<ST, CSkip> { using result = ST; };
-template <typename ST, typename ID, typename A> struct ceval<ST, CAss<ID, A>> {
+template <typename ST, typename ID, typename A> struct ceval<ST, CAsgn<ID, A>> {
   using result = typename update<ID, typename aeval<ST, A>::result, ST>::result;
 };
 template <typename ST, typename C1, typename C2>
@@ -293,15 +292,16 @@ void test() {
                 True>,
       "");
   // test a imperative program
-  using init = CSeq<CAss<X, ANum<S<Three>>>, CAss<Y, ANum<Zero>>>;
-  using body =
-      CSeq<CAss<X, AMinus<AId<X>, ANum<One>>>, CAss<Y, APlus<AId<X>, AId<Y>>>>;
+  using init = CSeq<CAsgn<X, ANum<S<S<S<S<S<S<O>>>>>>>>, CAsgn<Y, ANum<One>>>;
+  using body = CSeq<CAsgn<Y, AMult<AId<X>, AId<Y>>>,
+                    CAsgn<X, AMinus<AId<X>, ANum<One>>>>;
   using cond = BNot<BEq<AId<X>, ANum<Zero>>>;
   using prog = CSeq<init, CWhile<cond, body>>;
   using result = ceval<update<X, Zero, update<Y, Zero, empty>::result>::result,
                        prog>::result;
   static_assert(
-      ind_nat_to_lit<unwrap<find<Y, result>::result>::result>::value == 6, "");
+      ind_nat_to_lit<unwrap<find<Y, result>::result>::result>::value == 720,
+      "");
 }
 } // namespace oeobia
 
